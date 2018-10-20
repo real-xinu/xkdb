@@ -1,3 +1,4 @@
+import argparse
 import socket
 import netifaces
 import collections
@@ -106,7 +107,13 @@ def get_free_backend(backend_servers):
             if backend.user is None:
                 return server, backend
 
-def get_backend_servers(s, backend_class="cortex"):
+def get_backend_servers(backend_class="cortex"):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    s.bind(("0.0.0.0", 0))
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 40000)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
     addresses = get_udp_broadcast_interfaces()
     backend_servers = []
 
@@ -123,14 +130,22 @@ def get_backend_servers(s, backend_class="cortex"):
 
 
 def main():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    parser = argparse.ArgumentParser(description='Access a Xinu backend with GDB support')
+    parser.add_argument('--status', '-u', dest='status', action='store_true',
+                        help='print out status of backends and exit')
+    parser.add_argument('--type', '-t', '--class', '-c', dest='type', 
+                        action='store', default='quark',
+                        help='the type of backend board to connect to (default=quark)')
+    parser.add_argument('backend', metavar='BACKEND', type=str, nargs='?', default=None,
+                        help='optionally specify a backend board to connect to')
+    args = parser.parse_args()
 
-    s.bind(("0.0.0.0", 0))
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 40000)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-    backend_servers = get_backend_servers(s, backend_class="quark")
-    print("Available servers: {}".format(backend_servers))
+    backend_servers = get_backend_servers(backend_class=args.type)
+
+    if args.status:
+        print("Available servers: {}".format(backend_servers))
+        return
 
     server, backend = get_free_backend(backend_servers)
     connection_string = get_connection_string("test", command="connect", server=backend.name, backend_class=backend.type)

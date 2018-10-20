@@ -107,6 +107,13 @@ def get_free_backend(backend_servers):
             if backend.user is None:
                 return server, backend
 
+def get_specific_backend(backend_servers, backend_name):
+    for server in backend_servers:
+        for backend in server.backends:
+            if backend.name == backend_name:
+                return server, backend
+    return None, None
+
 def get_backend_servers(backend_class="cortex"):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -126,6 +133,8 @@ def get_backend_servers(backend_class="cortex"):
         backend_server = BackendServer(server_name, addr[0], backends)
         backend_servers.append(backend_server)
 
+    # Close the udp socket
+    s.close()
     return backend_servers
 
 
@@ -147,8 +156,20 @@ def main():
         print("Available servers: {}".format(backend_servers))
         return
 
-    server, backend = get_free_backend(backend_servers)
-    connection_string = get_connection_string("test", command="connect", server=backend.name, backend_class=backend.type)
+    if args.backend is None:
+        server, backend = get_free_backend(backend_servers)
+    else:
+        server, backend = get_specific_backend(backend_servers, args.backend)
+        if server is None:
+            print("Backend {} not found, use --status to list backends".format(args.backend))
+            return
+        if backend.user is not None:
+            print("Backend {} is in use by {}".format(backend.name, backend.user))
+            return
+    
+    connection_string = get_connection_string("test", command="connect", 
+                                              server=backend.name, 
+                                              backend_class=backend.type)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("0.0.0.0", 0))
@@ -167,8 +188,6 @@ def main():
 
     print("Connecting to {}, backend: {}, address: {}:{}".format(server.name, backend.name, addr, port))
 
-    # Close the udp socket
-    s.close()
     # Establish a tcp connection on the provided port
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((addr, port))

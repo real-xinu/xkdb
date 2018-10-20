@@ -149,7 +149,6 @@ def main():
                         help='optionally specify a backend board to connect to')
     args = parser.parse_args()
 
-
     backend_servers = get_backend_servers(backend_class=args.type)
 
     if args.status:
@@ -158,7 +157,9 @@ def main():
         print("|-" + ('-' * 12) + '+-' + ('-' * 10) + '+-' + ('-' * 12) + '+-' + ('-' * 10) + '|') 
         for server in backend_servers:
             for backend in server.backends:
-                print(row_format.format(backend.name, backend.type, backend.user, backend.time))
+                print(row_format.format(
+                    backend.name, backend.type, str(backend.user), str(backend.time)
+                ))
         return
 
     if args.backend is None:
@@ -188,7 +189,7 @@ def main():
     try:
         port = parse_port(response)
     except ValueError:
-        print("Unable to connect")
+        print("Invalid port from server")
         raise ValueError()
 
     print("Connecting to {}, backend: {}, address: {}:{}".format(server.name, backend.name, addr, port))

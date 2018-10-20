@@ -46,7 +46,7 @@ def get_string(s):
     count = 0
     for char in s:
         count += 1
-        if int(char) == 0:
+        if char == 0 or char == '\0':
             break
         string.append(char)
 

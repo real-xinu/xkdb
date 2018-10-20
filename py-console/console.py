@@ -42,13 +42,13 @@ def get_connection_string(username, command, server="", backend_class=""):
 
 # Gets a string up to a null terminator, returning the length advanced
 def get_string(s):
-    string = b""
+    string = bytearray()
     count = 0
     for char in s:
         count += 1
-        if char == b"\0":
+        if int(char) == 0:
             break
-        string += char
+        string.append(char)
 
     string = string.decode('utf8')
     return string, count

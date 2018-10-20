@@ -63,7 +63,7 @@ def test_main_status(get_backend_servers, capsys):
 
 @mock.patch('argparse._sys.argv', ['console.py', 'xinu02'])
 @mock.patch('console.get_backend_servers')
-def test_get_specific_backend(get_backend_servers, capsys):
+def test_get_specific_backend_in_use(get_backend_servers, capsys):
     get_backend_servers.return_value = mock_servers
 
     console.main()
@@ -74,7 +74,7 @@ def test_get_specific_backend(get_backend_servers, capsys):
 
 @mock.patch('argparse._sys.argv', ['console.py', 'nope'])
 @mock.patch('console.get_backend_servers')
-def test_get_specific_backend(get_backend_servers, capsys):
+def test_get_specific_backend_non_existent(get_backend_servers, capsys):
     get_backend_servers.return_value = mock_servers
 
     console.main()

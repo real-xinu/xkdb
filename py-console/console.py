@@ -199,8 +199,41 @@ def main():
     s.connect((addr, port))
 
     data = s.recv(1024)
-    while data is not None:
-        sys.stdout.write(data)
+    idx = 0
+
+    byte, idx, data = recv_one(idx, data, s)
+    while byte is not None:
+        if byte == '\02':
+            byte, idx, data = handle_gdb_msg(idx, data, s)
+        sys.stdout.write(byte)
+        # sys.stdout.flush()
+        byte, idx, data = recv_one(idx, data, s)
+
+def handle_gdb_msg(idx, data, s):
+    msg = b""
+    for i in range(3):
+        byte, idx, data = recv_one(idx, data, s)
+        msg += byte
+    if msg != b"GDB":
+        return b"\02" + msg, idx, data
+    else:
+        msg = b""
+        while byte != b'\04':
+            msg += byte
+            byte, idx, data = recv_one(idx, data, s)
+        #do something with msg
+        print("Got GDB msg:{}".format(msg))
+        return b"", idx, data
+
+def recv_one(idx, data, s):
+    if idx != len(data):
+        byte = data[idx]
+        idx += 1
+        return byte, idx, data
+    else:
+        data = s.recv(1024)
+        idx = 1
+        return data[0], idx, data
 
 if __name__ == "__main__":
     main()

@@ -21,16 +21,21 @@ Xinu Kernel DeBugger
    function (changes marked with `//` comments):
 
    ```c
-            /* Create a ready list for processes */
+   static  void    sysinit()
+   {
+   ...
+       /* Create a ready list for processes */
 
-            readylist = newqueue();
+       readylist = newqueue();
 
-            set_debug_traps(); // Add these two
-            breakpoint();      // function calls here
+       set_debug_traps(); // Add these two
+       breakpoint();      // function calls here
         
-            /* Initialize the real time clock */
+       /* Initialize the real time clock */
     
-            clkinit();
+       clkinit();
+   ...
+   }
     ```
 
 2. **Add debug flag to your xinu Makefile**

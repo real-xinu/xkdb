@@ -1,8 +1,10 @@
+#!/usr/bin/env python2
 import argparse
 import socket
 import collections
 import threading
 import sys
+from os.path import expanduser
 
 
 BACKEND_PORT = 2025
@@ -187,16 +189,20 @@ class GDBRequestHandler:
     def __init__(self, xinu_sock):
         self.xinu_sock = xinu_sock
         self.gdb_conn = None
+        self.listening = False
         self.send_buffer = b""
 
         self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listen_sock.bind(("localhost", 0))
         _, self.port = self.listen_sock.getsockname()
+
+    def start_listening(self):
         self.listen_sock.listen(1)
 
         thrd = threading.Thread(target=self.accept_connection)
         thrd.daemon = True
         thrd.start()
+        self.listening = True
         
     def accept_connection(self):
         conn, addr = self.listen_sock.accept()
@@ -287,6 +293,11 @@ def main():
     gdb_handler = GDBRequestHandler(s)
 
     print("GDB server listening on localhost:{}".format(gdb_handler.port))
+    with open("{}/.xkdb".format(expanduser('~')), "w") as f:
+        f.write("file {}")
+        f.write("set tcp auto-retry on\n")
+        f.write("set tcp connect-timeout 60\n")
+        f.write("target remote localhost:{}\n".format(gdb_handler.port))
 
     if args.powercycle:
         print("[i] Power cycling backend")
@@ -314,6 +325,8 @@ def handle_gdb_msg(idx, data, s, gdb_handler):
             msg += byte
             byte, idx, data = recv_one(idx, data, s)
         #do something with msg
+        if not gdb_handler.listening:
+            gdb_handler.start_listening()
         gdb_handler.send_to_gdb(msg)
         print("Got GDB msg:{}".format(msg))
         return b"", idx, data

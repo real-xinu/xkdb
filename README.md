@@ -3,6 +3,8 @@
 # xkdb
 Xinu Kernel DeBugger
 
+## How to Use
+
 ## Project Structure
 
 * `stub/` - The gdb stub and changes on the Xinu side to act as

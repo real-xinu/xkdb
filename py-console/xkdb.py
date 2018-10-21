@@ -4,7 +4,7 @@ import socket
 import collections
 import threading
 import sys
-from os.path import expanduser
+from os.path import expanduser, abspath
 
 
 BACKEND_PORT = 2025
@@ -294,9 +294,12 @@ def main():
 
     print("GDB server listening on localhost:{}".format(gdb_handler.port))
     with open("{}/.xkdb".format(expanduser('~')), "w") as f:
-        f.write("file {}")
+        f.write("file {}.elf\n".format(abspath(args.xinu_file)))
         f.write("set tcp auto-retry on\n")
         f.write("set tcp connect-timeout 60\n")
+        f.write('print ""\n')
+        f.write('print "***** Connecting to xinu - please wait until fully booted *****"\n')
+        f.write('print ""\n')
         f.write("target remote localhost:{}\n".format(gdb_handler.port))
 
     if args.powercycle:
@@ -311,7 +314,6 @@ def main():
         if byte == '\02':
             byte, idx, data = handle_gdb_msg(idx, data, s, gdb_handler)
         sys.stdout.write(byte)
-        # sys.stdout.flush()
         byte, idx, data = recv_one(idx, data, s)
 
 def handle_gdb_msg(idx, data, s, gdb_handler):
@@ -328,7 +330,7 @@ def handle_gdb_msg(idx, data, s, gdb_handler):
         if not gdb_handler.listening:
             gdb_handler.start_listening()
         gdb_handler.send_to_gdb(msg)
-        print("Got GDB msg:{}".format(msg))
+        #print("Got GDB msg:{}".format(msg))
         return b"", idx, data
 
 def recv_one(idx, data, s):

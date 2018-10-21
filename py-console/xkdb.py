@@ -1,4 +1,3 @@
-#!/usr/bin/env python2
 import argparse
 import socket
 import netifaces
@@ -97,7 +96,6 @@ def parse_port(response):
 
     server_name = response[2:65].replace(b"\0", b"").decode('utf8')
     port = response[76:]
-    print(port)
     port = port.split()
     port = int(port[0])
 
@@ -139,6 +137,50 @@ def get_backend_servers(backend_class="cortex"):
     s.close()
     return backend_servers
 
+def send_command(addr, command):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("0.0.0.0", 0))
+    sock.sendto(command, (addr, BACKEND_PORT))
+
+    response, addr = sock.recvfrom(125004)
+    sock.close()
+    return response, addr
+
+# Powercycles a backend connected to a Xinu server at addr
+def powercycle(addr, backend):
+    connection_string = get_connection_string("test", command="connect", 
+                                              server=backend.name + "-pc", 
+                                              backend_class="POWERCYCLE")
+    response, addr = send_command(addr, connection_string)
+    port = parse_port(response)
+
+    # Establish a tcp connection on the provided port
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((addr[0], port))
+    s.send('boop')
+    s.shutdown(socket.SHUT_WR)
+    s.close()
+
+def upload_image(addr, backend, image_file):
+    connection_string = get_connection_string("test", command="connect", 
+                                              server=backend.name + "-dl", 
+                                              backend_class="DOWNLOAD")
+    response, addr = send_command(addr, connection_string)
+    port = parse_port(response)
+
+    # Establish a tcp connection on the provided port
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((addr[0], port))
+
+    # Read file and send in chunks of size 4096
+    chunk = image_file.read(4096)
+    while chunk != '':
+        s.send(chunk)
+        chunk = image_file.read(4096)
+    s.shutdown(socket.SHUT_WR)
+    s.close()
+
+
 class GDBRequestHandler:
     def __init__(self, xinu_sock):
         self.xinu_sock = xinu_sock
@@ -173,12 +215,26 @@ class GDBRequestHandler:
             self.send_buffer += data
 
 def main():
-    parser = argparse.ArgumentParser(description='Access a Xinu backend with GDB support')
-    parser.add_argument('--status', '-u', dest='status', action='store_true',
+    parser = argparse.ArgumentParser(
+            description='Access a Xinu backend with GDB support. By default this '
+                        'program will connect to the first available free backend, '
+                        'upload the image file called "xinu" from the current directory '
+                        'and powercycle the backend.\n\n'
+                        'You can specify the name of the image file, the backend and '
+                        'choose whether you want to powercycle or upload.'
+    )
+    parser.add_argument('--status', '-s', dest='status', action='store_true',
                         help='print out status of backends and exit')
     parser.add_argument('--type', '-t', '--class', '-c', dest='type', 
                         action='store', default='quark',
                         help='the type of backend board to connect to (default=quark)')
+    parser.add_argument('--xinu', '-x', dest='xinu_file', action='store', default='xinu',
+                        help='the xinu image file to upload and debug\n'
+                             '(default="./xinu")')
+    parser.add_argument("--no-powercycle", "-p", action='store_false', dest='powercycle',
+                        help='do not power cycle the backend when connecting')
+    parser.add_argument("--no-upload", "-u", action='store_false', dest='upload',
+                        help='do not upload the xinu image before connecting')
     parser.add_argument('backend', metavar='BACKEND', type=str, nargs='?', default=None,
                         help='optionally specify a backend board to connect to')
     args = parser.parse_args()
@@ -206,26 +262,19 @@ def main():
         if backend.user is not None:
             print("Backend {} is in use by {}".format(backend.name, backend.user))
             return
+
+    if args.upload:
+        print("Uploading image file")
+        with open(args.xinu_file, 'rb') as f:
+            upload_image(server.addr, backend, f)
+        print("Done uploading image")
     
     connection_string = get_connection_string("test", command="connect", 
                                               server=backend.name, 
                                               backend_class=backend.type)
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", 0))
-    sock.sendto(connection_string, (server.addr, BACKEND_PORT))
-
-    response, addr = sock.recvfrom(125004)
+    response, addr = send_command(server.addr, connection_string)
     addr = addr[0]
-
-    sock.close()
-
-    try:
-        port = parse_port(response)
-    except ValueError:
-        print("Invalid port from server")
-        raise ValueError()
-
+    port = parse_port(response)
 
     print("Connecting to {}, backend: {}, address: {}:{}".format(server.name, backend.name, addr, port))
 
@@ -236,6 +285,10 @@ def main():
     gdb_handler = GDBRequestHandler(s)
 
     print("GDB server listening on localhost:{}".format(gdb_handler.port))
+
+    if args.powercycle:
+        print("[i] Power cycling backend")
+        powercycle(server.addr, backend)
 
     data = s.recv(1024)
     idx = 0

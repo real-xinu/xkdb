@@ -5,6 +5,62 @@ Xinu Kernel DeBugger
 
 ## How to Use
 
+1. **Compile stub into your xinu build**
+
+   Move `stub/i386-stub.c` into `system/i386.stub.c`.
+
+   Make the following change in your `system/initialize.c` file, firstly add
+   these prototypes on the top of the file with the other externs:
+
+   ```c
+   extern void set_debug_traps(); // Add these two function
+   extern void breakpoint();      // prototypes
+   ```
+
+   Next add these two function calls near the bottom of the `sysinit()` 
+   function (changes marked with `//` comments):
+
+   ```c
+            /* Create a ready list for processes */
+
+            readylist = newqueue();
+
+            set_debug_traps(); // Add these two
+            breakpoint();      // function calls here
+        
+            /* Initialize the real time clock */
+    
+            clkinit();
+    ```
+
+2. **Add debug flag to your xinu Makefile**
+
+   Open up `compile/Makefile` and find the line with the compiler flags, it
+   should look like this: ```CFLAGS  = -march=i586 ...```
+
+   Add `-g` to the `CFLAGS` variable so it looks along the lines of:
+   ```CFLAGS  = -g -march=i586 -m32 -fno-builtin...```
+
+3. **Use xkdb.py to connect to a backend board**
+
+   Change into your Xinu `/compile` directory. You can then run xkdb with
+   `~/path/to/xkdb/py-console/xkdb.py`
+
+   This will automatically upload the xinu image file and power cycle the
+   backend. Use the `--help` option view all the options available for
+   `xkdb.py`
+
+4. **Connect GDB to the backend**
+
+   Open up another terminal and run `gdb -x ~/.xkdb`
+
+   GDB will be unresponsive until the backend is fully booted, then you should
+   see the breakpoint be hit.
+
+
+*Tip*: Add `~/path/to/xkdb/py-console` to your `PATH` variable so you can
+simply use the command `xkdb.py` instead of specifying the full path.
+
 ## Project Structure
 
 * `stub/` - The gdb stub and changes on the Xinu side to act as

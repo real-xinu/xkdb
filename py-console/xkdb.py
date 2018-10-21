@@ -293,10 +293,11 @@ def main():
     gdb_handler = GDBRequestHandler(s)
 
     print("GDB server listening on localhost:{}".format(gdb_handler.port))
+    print("You can connect automatically with: gdb -x ~/.xkdb")
     with open("{}/.xkdb".format(expanduser('~')), "w") as f:
         f.write("file {}.elf\n".format(abspath(args.xinu_file)))
         f.write("set tcp auto-retry on\n")
-        f.write("set tcp connect-timeout 60\n")
+        f.write("set tcp connect-timeout 120\n")
         f.write('print ""\n')
         f.write('print "***** Connecting to xinu - please wait until fully booted *****"\n')
         f.write('print ""\n')

@@ -5,27 +5,13 @@ import collections
 import threading
 import sys
 from os.path import expanduser, abspath
+from interfaces import get_udp_broadcast_addrs
 
 
 BACKEND_PORT = 2025
 BackendServer = collections.namedtuple('BackendServer', ['name', 'addr', 'backends'])
 Backend = collections.namedtuple('Backend', ['name', 'type', 'user', 'time'])
 
-
-def get_udp_broadcast_interfaces():
-    import netifaces
-
-    broadcast_addresses = []
-
-    for interface in netifaces.interfaces():
-        addrs = netifaces.ifaddresses(interface)
-        if socket.SOCK_DGRAM in addrs:
-            addrs = addrs[socket.SOCK_DGRAM]
-            for addr in addrs:
-                if 'broadcast' in addr:
-                    broadcast_addresses.append(addr['broadcast'])
-
-    return broadcast_addresses
 
 def get_connection_string(username, command, server="", backend_class=""):
     string = bytearray(b"\0" * 50)
@@ -125,7 +111,7 @@ def get_backend_servers(backend_class="cortex"):
     s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 40000)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-    addresses = get_udp_broadcast_interfaces()
+    addresses = get_udp_broadcast_addrs()
     backend_servers = []
 
     connection_string = get_connection_string("test", command="list", backend_class=backend_class)

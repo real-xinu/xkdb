@@ -863,13 +863,18 @@ handle_exception (int exceptionVector)
 	  {
 	    int regno;
 
-	    if (hexToInt (&ptr, &regno) && *ptr++ == '=')
-	      if (regno >= 0 && regno < NUMREGS)
-		{
-		  hex2mem (ptr, (char *) &registers[regno], 4, 0);
-		  strcpy (remcomOutBuffer, "OK");
-		  break;
-		}
+	    if (hexToInt (&ptr, &regno) && *ptr++ == '=') {
+          // ignore writes to orig_eax, this is Linux specific
+          if (regno == 0x29) {
+            strcpy (remcomOutBuffer, "OK");
+            break;
+          }
+          if (regno >= 0 && regno < NUMREGS) {
+            hex2mem (ptr, (char *) &registers[regno], 4, 0);
+            strcpy (remcomOutBuffer, "OK");
+            break;
+          }
+        }
 
 	    strcpy (remcomOutBuffer, "E01");
 	    break;

@@ -92,7 +92,7 @@ def parse_backend_response(response):
     return server_name, backends
 
 def parse_port(response):
-    if response[0] != b"C":
+    if response[0:1] != b"C":
         raise ValueError("Invalid response version")
 
     server_name = response[2:65].replace(b"\0", b"").decode('utf8')

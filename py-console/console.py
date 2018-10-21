@@ -2,6 +2,7 @@ import argparse
 import socket
 import netifaces
 import collections
+import threading
 import sys
 
 
@@ -137,6 +138,38 @@ def get_backend_servers(backend_class="cortex"):
     s.close()
     return backend_servers
 
+class GDBRequestHandler:
+    def __init__(self, xinu_sock):
+        self.xinu_sock = xinu_sock
+        self.gdb_conn = None
+        self.send_buffer = b""
+
+        self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listen_sock.bind(("localhost", 0))
+        _, self.port = self.listen_sock.getsockname()
+        self.listen_sock.listen(1)
+
+        thrd = threading.Thread(target=self.accept_connection)
+        thrd.daemon = True
+        thrd.start()
+        
+    def accept_connection(self):
+        conn, addr = self.listen_sock.accept()
+        self.gdb_conn = conn
+        
+        if len(self.send_buffer) > 0:
+            self.gdb_conn.send(self.send_buffer)
+
+        data = conn.recv(1024)
+        while data is not None:
+            self.xinu_sock.send(data)
+            data = conn.recv(1024)
+
+    def send_to_gdb(self, data):
+        if self.gdb_conn is not None:
+            self.gdb_conn.send(data)
+        else:
+            self.send_buffer += data
 
 def main():
     parser = argparse.ArgumentParser(description='Access a Xinu backend with GDB support')
@@ -192,11 +225,16 @@ def main():
         print("Invalid port from server")
         raise ValueError()
 
+
     print("Connecting to {}, backend: {}, address: {}:{}".format(server.name, backend.name, addr, port))
 
     # Establish a tcp connection on the provided port
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((addr, port))
+
+    gdb_handler = GDBRequestHandler(s)
+
+    print("GDB server listening on localhost:{}".format(gdb_handler.port))
 
     data = s.recv(1024)
     idx = 0
@@ -204,24 +242,23 @@ def main():
     byte, idx, data = recv_one(idx, data, s)
     while byte is not None:
         if byte == '\02':
-            byte, idx, data = handle_gdb_msg(idx, data, s)
+            byte, idx, data = handle_gdb_msg(idx, data, s, gdb_handler)
         sys.stdout.write(byte)
         # sys.stdout.flush()
         byte, idx, data = recv_one(idx, data, s)
 
-def handle_gdb_msg(idx, data, s):
-    msg = b""
-    for i in range(3):
-        byte, idx, data = recv_one(idx, data, s)
-        msg += byte
-    if msg != b"GDB":
-        return b"\02" + msg, idx, data
+def handle_gdb_msg(idx, data, s, gdb_handler):
+    byte, idx, data = recv_one(idx, data, s)
+    if byte != b"G":
+        return b"\02" + byte, idx, data
     else:
         msg = b""
+        byte, idx, data = recv_one(idx, data, s)
         while byte != b'\04':
             msg += byte
             byte, idx, data = recv_one(idx, data, s)
         #do something with msg
+        gdb_handler.send_to_gdb(msg)
         print("Got GDB msg:{}".format(msg))
         return b"", idx, data
 

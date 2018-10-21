@@ -491,7 +491,10 @@ static unsigned char remcomInBuffer[BUFMAX];
 static char remcomOutBuffer[BUFMAX];
 
 /* scan for the sequence $<data>#<checksum>     */
-
+void send_gdb_header(){	
+      putDebugChar('\02'); //STX
+      putDebugChar('G');
+}
 unsigned char *
 getpacket (void)
 {
@@ -540,10 +543,13 @@ getpacket (void)
 		  kprintf ("bad checksum.  My count = 0x%x, sent=0x%x. buf=%s\n",
 			   checksum, xmitcsum, buffer);
 		}
+	      send_gdb_header();
 	      putDebugChar ('-');	/* failed checksum */
+              putDebugChar('\04'); //EOT
 	    }
 	  else
 	    {
+	      send_gdb_header();
 	      putDebugChar ('+');	/* successful transfer */
 
 	      /* if a sequence char is present, reply the sequence ID */
@@ -552,9 +558,12 @@ getpacket (void)
 		  putDebugChar (buffer[0]);
 		  putDebugChar (buffer[1]);
 
+
+                  putDebugChar('\04'); //EOT
 		  return &buffer[3];
 		}
 
+              putDebugChar('\04'); //EOT
 	      return &buffer[0];
 	    }
 	}
@@ -573,11 +582,7 @@ putpacket (unsigned char *buffer)
   /*  $<packet info>#<checksum>.  */
   do
     {
-      putDebugChar('\02'); //STX
-      putDebugChar('G');
-      putDebugChar('D');
-      putDebugChar('B');
-
+      send_gdb_header();
       putDebugChar ('$');
       checksum = 0;
       count = 0;

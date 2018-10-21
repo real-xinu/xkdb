@@ -1,6 +1,5 @@
 import argparse
 import socket
-import netifaces
 import collections
 import threading
 import sys
@@ -12,6 +11,8 @@ Backend = collections.namedtuple('Backend', ['name', 'type', 'user', 'time'])
 
 
 def get_udp_broadcast_interfaces():
+    import netifaces
+
     broadcast_addresses = []
 
     for interface in netifaces.interfaces():
@@ -106,6 +107,7 @@ def get_free_backend(backend_servers):
         for backend in server.backends:
             if backend.user is None:
                 return server, backend
+    return None, None
 
 def get_specific_backend(backend_servers, backend_name):
     for server in backend_servers:

@@ -31,6 +31,23 @@ class TestConsole(unittest.TestCase):
         self.assertEqual(string3, "This is a null terminated string")
         self.assertEqual(length, 32)
 
+    def test_parse_port(self):
+        response = 'C\x01xinuserver.cs.purdue.edu\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x000\x00\x00\x00\x00\x00\x00\x00\x00\x0048670 : connect port\x00'
+        self.assertEqual(xkdb.parse_port(response), 48670)
+
+        response = 'A\x01xinuserver.cs.purdue.edu\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x000\x00\x00\x00\x00\x00\x00\x00\x00\x0048670 : connect port\x00'
+        with self.assertRaises(ValueError):
+            xkdb.parse_port(response)
+
+    def test_get_free_backend(self):
+        server, backend = xkdb.get_free_backend(mock_servers)
+        self.assertIs(server, mock_servers[0])
+        self.assertIs(backend, mock_servers[0].backends[0])
+
+        server, backend = xkdb.get_free_backend([])
+        self.assertIsNone(server)
+        self.assertIsNone(backend)
+
 backends1 = [
     xkdb.Backend('xinu01', 'quark', None, None),
     xkdb.Backend('xinu02', 'galileo', 'anon', '21:30')

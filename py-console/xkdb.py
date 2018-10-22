@@ -4,6 +4,7 @@ import socket
 import collections
 import threading
 import sys
+import os
 from os.path import expanduser, abspath
 from interfaces import get_udp_broadcast_addrs
 
@@ -13,7 +14,10 @@ BackendServer = collections.namedtuple('BackendServer', ['name', 'addr', 'backen
 Backend = collections.namedtuple('Backend', ['name', 'type', 'user', 'time'])
 
 
-def get_connection_string(username, command, server="", backend_class=""):
+def get_connection_string(command, username=None, server="", backend_class=""):
+    if username is None:
+        username = os.getenv('USER', 'xkdb-user')
+        
     string = bytearray(b"\0" * 50)
 
     string[0] = b"C"
@@ -114,7 +118,7 @@ def get_backend_servers(backend_class="cortex"):
     addresses = get_udp_broadcast_addrs()
     backend_servers = []
 
-    connection_string = get_connection_string("test", command="list", backend_class=backend_class)
+    connection_string = get_connection_string(command="list", backend_class=backend_class)
     for address in addresses:
         s.sendto(connection_string, (address, BACKEND_PORT))
         response, addr = s.recvfrom(125004)
@@ -138,7 +142,7 @@ def send_command(addr, command):
 
 # Powercycles a backend connected to a Xinu server at addr
 def powercycle(addr, backend):
-    connection_string = get_connection_string("test", command="connect", 
+    connection_string = get_connection_string(command="connect", 
                                               server=backend.name + "-pc", 
                                               backend_class="POWERCYCLE")
     response, addr = send_command(addr, connection_string)
@@ -152,7 +156,7 @@ def powercycle(addr, backend):
     s.close()
 
 def upload_image(addr, backend, image_file):
-    connection_string = get_connection_string("test", command="connect", 
+    connection_string = get_connection_string(command="connect", 
                                               server=backend.name + "-dl", 
                                               backend_class="DOWNLOAD")
     response, addr = send_command(addr, connection_string)
@@ -263,7 +267,7 @@ def main():
             upload_image(server.addr, backend, f)
         print("Done uploading image")
     
-    connection_string = get_connection_string("test", command="connect", 
+    connection_string = get_connection_string(command="connect", 
                                               server=backend.name, 
                                               backend_class=backend.type)
     response, addr = send_command(server.addr, connection_string)

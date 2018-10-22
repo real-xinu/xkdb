@@ -1,7 +1,10 @@
 [![Build Status](https://travis-ci.org/ammaraskar/xkdb.svg?branch=master)](https://travis-ci.org/ammaraskar/xkdb)
 [![Code Coverage](https://codecov.io/gh/ammaraskar/xkdb/branch/master/graph/badge.svg)](https://codecov.io/gh/ammaraskar/xkdb)
 # xkdb
-Xinu Kernel DeBugger
+Xinu Kernel DeBugger is a project that allows you to use GDB on remote
+xinu backends.
+
+![Demo](https://i.imgur.com/9S6KIva.gif)
 
 ## How to Use
 

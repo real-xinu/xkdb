@@ -240,14 +240,17 @@ def main():
     backend_servers = get_backend_servers(backend_class=args.type)
 
     if args.status:
+        seen = set()
         row_format = "| {:<12}| {:<10}| {:<12}| {:<10}|"
         print(row_format.format("Backend", "Type", "User", "Time"))
         print("|-" + ('-' * 12) + '+-' + ('-' * 10) + '+-' + ('-' * 12) + '+-' + ('-' * 10) + '|') 
         for server in backend_servers:
             for backend in server.backends:
-                print(row_format.format(
-                    backend.name, backend.type, str(backend.user), str(backend.time)
-                ))
+                if backend.name not in seen:
+                    print(row_format.format(
+                        backend.name, backend.type, str(backend.user), str(backend.time)
+                    ))
+                seen.add(backend.name)
         return
 
     if args.backend is None:

@@ -48,8 +48,13 @@ xinu backends.
 
    Add `-g` to the `CFLAGS` variable so it looks along the lines of:
    ```CFLAGS  = -g -march=i586 -m32 -fno-builtin...```
+   
+3. **Recompile**
 
-3. **Use xkdb.py to connect to a backend board**
+   Run `make clean`, `make rebuild` and `make` in order to compile the stub
+   and debug symbols into your xinu image.
+
+4. **Use xkdb.py to connect to a backend board**
 
    Change into your Xinu `/compile` directory. You can then run xkdb with
    `~/path/to/xkdb/py-console/xkdb.py`
@@ -58,7 +63,7 @@ xinu backends.
    backend. Use the `--help` option view all the options available for
    `xkdb.py`
 
-4. **Connect GDB to the backend**
+5. **Connect GDB to the backend**
 
    Open up another terminal and run `gdb -x ~/.xkdb`
 

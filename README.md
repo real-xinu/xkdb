@@ -58,10 +58,18 @@ xinu backends.
 
    Change into your Xinu `/compile` directory. You can then run xkdb with
    `~/path/to/xkdb/py-console/xkdb.py`
-
+   
    This will automatically upload the xinu image file and power cycle the
    backend. Use the `--help` option view all the options available for
    `xkdb.py`
+   
+   >*Tip*: Add `$HOME/path/to/xkdb/py-console` to your `PATH` variable so you can
+   >simply use the command `xkdb.py` instead of specifying the full path.
+   
+   >To do that edit your `~/.bashrc` and add the line `export PATH=${PATH}:$HOME/path/to/xkdb/py-console` .
+   >If you already have this line to add another path, just add the path next to your list of path seperate by a colon `:`.
+   
+   >Then just run `. ~/.bashrc` or `source ~/.bashrc` to update your bash profile.
 
 5. **Connect GDB to the backend**
 
@@ -69,10 +77,6 @@ xinu backends.
 
    GDB will be unresponsive until the backend is fully booted, then you should
    see the breakpoint be hit.
-
-
-*Tip*: Add `~/path/to/xkdb/py-console` to your `PATH` variable so you can
-simply use the command `xkdb.py` instead of specifying the full path.
 
 ## Project Structure
 

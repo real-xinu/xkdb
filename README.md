@@ -22,7 +22,7 @@ If a stub doesn't exist for your board, please read the instructions in
 
 1. **Compile appropriate stub into your xinu build**
 
-   Move `stub/<arch>-stub.c` into `system/<arch>.stub.c`.
+   Move `stub/<arch>-stub.c` into `system/<arch>-stub.c`.
 
    Make the following change in your `system/initialize.c` file, firstly add
    these prototypes on the top of the file with the other externs:

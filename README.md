@@ -8,9 +8,21 @@ xinu backends.
 
 ## How to Use
 
-1. **Compile stub into your xinu build**
+Firstly, you need to find the right stub for your architecture. If you
+don't know the architecture of your Xinu backend board maybe pay more
+attention in your OS class :) For reference, here is a cheat sheet for Purdue's
+boards in 2019.
 
-   Move `stub/i386-stub.c` into `system/i386.stub.c`.
+* **Galilelo** - x86 / i386
+
+* **Beaglebone Black** - ARM
+
+If a stub doesn't exist for your board, please read the instructions in
+[PORTING](PORTING.md).
+
+1. **Compile appropriate stub into your xinu build**
+
+   Move `stub/<arch>-stub.c` into `system/<arch>.stub.c`.
 
    Make the following change in your `system/initialize.c` file, firstly add
    these prototypes on the top of the file with the other externs:

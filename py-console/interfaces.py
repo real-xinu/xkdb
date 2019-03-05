@@ -1,5 +1,5 @@
-# Linux only, utility functions to get broadcast
-# addresses
+# Linux only, utility functions to get broadcast addresses of all
+# the network interfaces on the system.
 import socket
 import fcntl
 import struct

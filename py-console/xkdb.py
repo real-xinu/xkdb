@@ -286,6 +286,7 @@ def main():
     # Establish a tcp connection on the provided port
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((addr, port))
+    xinu_sock = s.makefile("rb", 0)
 
     gdb_handler = GDBRequestHandler(s)
 
@@ -304,9 +305,6 @@ def main():
         print("[i] Power cycling backend")
         powercycle(server.addr, backend)
 
-    data = s.recv(1024)
-    idx = 0
-
     # perserve previous terminal settings
     fd = sys.stdin.fileno()
     prev_settings = termios.tcgetattr(fd)
@@ -317,45 +315,44 @@ def main():
     atexit.register(lambda: termios.tcsetattr(fd, termios.TCSADRAIN, prev_settings))
 
     while True:
-        (read_in, _, _) = select.select([s, sys.stdin], [], [])
+        # poll to see if there is user input
+        (read_in, _, _) = select.select([xinu_sock, sys.stdin], [], [])
 
         # handle stdin
         if sys.stdin in read_in:
             user_input = sys.stdin.read(1)
-            s.send(user_input)
+            xinu_sock.write(user_input)
+
         # handle socket
-        elif s in read_in:
-            byte, idx, data = recv_one(idx, data, s)
+        elif xinu_sock in read_in:
+            byte = xinu_sock.read(1)
             if byte == '\02':
-                byte, idx, data = handle_gdb_msg(idx, data, s, gdb_handler)
-            sys.stdout.write(byte)
+                 handle_gdb_msg(xinu_sock, gdb_handler)
+            else:
+                sys.stdout.write(byte)
+                sys.stdout.flush()
 
-def handle_gdb_msg(idx, data, s, gdb_handler):
-    byte, idx, data = recv_one(idx, data, s)
+def handle_gdb_msg(s, gdb_handler):
+    byte = s.read(1)
     if byte != b"G":
-        return b"\02" + byte, idx, data
-    else:
-        msg = b""
-        byte, idx, data = recv_one(idx, data, s)
-        while byte != b'\04':
-            msg += byte
-            byte, idx, data = recv_one(idx, data, s)
-        # do something with msg
-        if not gdb_handler.listening:
-            gdb_handler.start_listening()
-        gdb_handler.send_to_gdb(msg)
-        # print("Got GDB msg:{}".format(msg))
-        return b"", idx, data
+        # not gdb message start indicator
+        sys.stdout.write('\02' + byte)
+        return
 
-def recv_one(idx, data, s):
-    if idx != len(data):
-        byte = data[idx]
-        idx += 1
-        return byte, idx, data
-    else:
-        data = s.recv(1024)
-        idx = 1
-        return data[0], idx, data
+    msg = b""
+    byte = s.read(1)
+
+    # read until we encounter end of text
+    while byte != b'\04':
+        msg += byte
+        byte = s.read(1)
+
+    # call listen for first msg
+    if not gdb_handler.listening:
+        gdb_handler.start_listening()
+
+    # send msg to gdb handler
+    gdb_handler.send_to_gdb(msg)
 
 if __name__ == "__main__":
     main()

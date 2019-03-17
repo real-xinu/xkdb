@@ -5,6 +5,10 @@ import collections
 import threading
 import sys
 import os
+import select
+import tty
+import termios
+import atexit
 from os.path import expanduser, abspath
 from interfaces import get_udp_broadcast_addrs
 
@@ -303,12 +307,28 @@ def main():
     data = s.recv(1024)
     idx = 0
 
-    byte, idx, data = recv_one(idx, data, s)
-    while byte is not None:
-        if byte == '\02':
-            byte, idx, data = handle_gdb_msg(idx, data, s, gdb_handler)
-        sys.stdout.write(byte)
-        byte, idx, data = recv_one(idx, data, s)
+    # perserve previous terminal settings
+    fd = sys.stdin.fileno()
+    prev_settings = termios.tcgetattr(fd)
+
+    # set terminal to raw mode for stdin
+    tty.setcbreak(sys.stdin)
+    # register an exit handler for resetting the terminal
+    atexit.register(lambda: termios.tcsetattr(fd, termios.TCSADRAIN, prev_settings))
+
+    while True:
+        (read_in, _, _) = select.select([s, sys.stdin], [], [])
+
+        # handle stdin
+        if sys.stdin in read_in:
+            user_input = sys.stdin.read(1)
+            s.send(user_input)
+        # handle socket
+        elif s in read_in:
+            byte, idx, data = recv_one(idx, data, s)
+            if byte == '\02':
+                byte, idx, data = handle_gdb_msg(idx, data, s, gdb_handler)
+            sys.stdout.write(byte)
 
 def handle_gdb_msg(idx, data, s, gdb_handler):
     byte, idx, data = recv_one(idx, data, s)
@@ -320,11 +340,11 @@ def handle_gdb_msg(idx, data, s, gdb_handler):
         while byte != b'\04':
             msg += byte
             byte, idx, data = recv_one(idx, data, s)
-        #do something with msg
+        # do something with msg
         if not gdb_handler.listening:
             gdb_handler.start_listening()
         gdb_handler.send_to_gdb(msg)
-        #print("Got GDB msg:{}".format(msg))
+        # print("Got GDB msg:{}".format(msg))
         return b"", idx, data
 
 def recv_one(idx, data, s):

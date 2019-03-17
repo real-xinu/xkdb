@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+# -*- coding: utf-8 -*-
 import argparse
 import socket
 import collections
@@ -296,6 +297,15 @@ def main():
         f.write("file {}.elf\n".format(abspath(args.xinu_file)))
         f.write("set tcp auto-retry on\n")
         f.write("set tcp connect-timeout 120\n")
+        f.write('print ""\n')
+        f.write('print ""\n')
+        f.write('print "██╗  ██╗██╗  ██╗██████╗ ██████╗"\n')
+        f.write('print "╚██╗██╔╝██║ ██╔╝██╔══██╗██╔══██╗"\n')
+        f.write('print " ╚███╔╝ █████╔╝ ██║  ██║██████╔╝"\n')
+        f.write('print " ██╔██╗ ██╔═██╗ ██║  ██║██╔══██╗"\n')
+        f.write('print "██╔╝ ██╗██║  ██╗██████╔╝██████╔╝"\n')
+        f.write('print "╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═════╝ "\n')
+        f.write('print ""\n')
         f.write('print ""\n')
         f.write('print "***** Connecting to xinu - please wait until fully booted *****"\n')
         f.write('print ""\n')

@@ -21,10 +21,6 @@
 
 #include <stdbool.h>
 #include <string.h>
-#include "ifp_usb_serial.h"
-#include "sscanf.h"
-#include "pnx0101.h"
-#include "gdb_api.h"
 
 #define BUFMAX 1024
 
@@ -38,7 +34,6 @@ static char reply_buf[BUFMAX];
 
 static const char hexchars[] = "0123456789abcdef";
 static int gdb_exception_no, gdb_mem_access;
-static unsigned char watchdog_enabled;
 static unsigned long registers[17];
 
 void gdb_api_breakpoint(void);
@@ -49,22 +44,6 @@ __attribute__((section(".gdbapi"))) struct gdb_api gdb_api =
     GDB_API_MAGIC,
     {gdb_api_breakpoint, gdb_api_log}
 };
-
-static void watchdog_enable(int on)
-{
-    (*(volatile unsigned long *)0x80002804) = on;
-    watchdog_enabled = on;
-}
-
-static void watchdog_service(void)
-{
-    if (watchdog_enabled)
-    {
-        (*(volatile unsigned long *)0x80002804) = 0;
-        (*(volatile unsigned long *)0x80002808) = 0;
-        (*(volatile unsigned long *)0x80002804) = 1;
-    }        
-}
 
 static inline bool isxdigit(char c)
 {
@@ -144,17 +123,44 @@ static void reply_ok(char *reply) {
 }
 
 static int get_byte(void) {
-    int b;
-    while ((b = usb_serial_try_get_byte()) < 0)
-        watchdog_service();
-    watchdog_service();
-    return b;
+    int c;
+    devptr = (struct dentry *) &devtab[CONSOLE];
+    regptr = (struct uart_csreg *)devptr->dvcsr;
+
+    irmask = regptr->ier;       /* Save UART interrupt state.   */
+    regptr->ier = 0;        /* Disable UART interrupts.     */
+
+    while (0 == (regptr->lsr & UART_LSR_DR)) {
+        ; /* Do Nothing */
+    }
+
+    /* Read character from Receive Holding Register */
+
+    c = regptr->rbr;
+    regptr->ier = irmask;       /* Restore UART interrupts.     */
+    return c;
 }
 
-static void put_byte(unsigned char ch) {
-    while (usb_serial_try_put_byte(ch) < 0)
-        watchdog_service();
-    watchdog_service();
+static void put_byte(unsigned char c) {
+    /* Get CSR address of the console */
+    devptr = (struct dentry *) &devtab[CONSOLE];
+    csrptr = (struct uart_csreg *) devptr->dvcsr;
+
+    /* wait for UART transmit queue to empty */
+    while ( (csrptr->lsr & UART_LSR_THRE) == 0 ) {
+        ;
+    }
+
+    /* write the character */
+    csrptr->buffer = c;
+
+    /* Honor CRLF - when writing NEWLINE also send CARRIAGE RETURN  */
+    if (c == '\n') {
+        while ( (csrptr->lsr & UART_LSR_THRE) == 0 ) {
+            ;
+        }
+        csrptr->buffer = '\r';
+    }
 }
 
 static void serial_write(unsigned char *buf, int len) {
@@ -432,58 +438,6 @@ static void cmd_go(char *args) {
         : : "r" (registers));
 }
 
-static void remote_cmd(char *cmd, char *reply) {
-    int i, err;
-    i = 0;
-    err = 0;
-    while ((cmd[i] >= 'a' && cmd[i] <= 'z') || cmd[i] == '_')
-        i++;
-    if (!strncmp(cmd, "reboot", i))
-    {
-        reply_ok(reply);
-        put_packet(reply);
-        watchdog_enable(1);
-        (*(volatile unsigned long *)0x80002804) = 1;
-        while (1);
-    }
-    else if (!strncmp(cmd, "power_off", i))
-    {
-        reply_ok(reply);
-        put_packet(reply);
-        GPIO1_CLR = 1 << 16;
-        GPIO2_SET = 1;
-        while (1);
-    }
-    else if (!strncmp(cmd, "watchdog", i))
-    {
-        int t;
-        if (sscanf(cmd + i, "%d", &t) == 1)
-            watchdog_enable(t != 0);
-        else
-            err = 1;
-        reply_ok(reply);
-    }
-    else
-        hex_string(reply, "Unrecognized command\n");
-    if (err)
-        reply_error(err, reply);
-}
-
-static void cmd_query(char *args, char *reply) {
-    if (!strncmp(args, "Rcmd,", 5)) {
-        unsigned i = 0;
-        char *s = args + 5;
-        char cmd[200];
-        while (isxdigit(s[0]) && isxdigit(s[1]) && i < sizeof(cmd) - 1) {
-            cmd[i++] = get_hex_byte(s);
-            s += 2;
-        }
-        cmd[i] = 0;
-        remote_cmd(cmd, reply);
-    } else
-        reply[0] = 0;
-}
-
 void gdb_loop(void) {
     int no_reply;
 
@@ -527,7 +481,7 @@ void gdb_loop(void) {
                 break;
 
             case 'q':
-                cmd_query(packet_buf + 1, reply_buf);
+                //cmd_query(packet_buf + 1, reply_buf);
                 break;
 
             case 'c':
@@ -608,7 +562,6 @@ static void system_init(void)
 {
     int i;
 
-    watchdog_enable(0);
 
     for (i = 0; i < 0x1c; i++)
     {

@@ -150,6 +150,7 @@ static void reply_ok(char *reply) {
     strcpy(reply, "OK");
 }
 
+
 static int get_byte(void) {
     struct dentry* devptr;
     struct uart_csreg* regptr;
@@ -188,14 +189,11 @@ static void put_byte(unsigned char c) {
 
     /* write the character */
     csrptr->buffer = c;
+}
 
-    /* Honor CRLF - when writing NEWLINE also send CARRIAGE RETURN  */
-    if (c == '\n') {
-        while ( (csrptr->lsr & UART_LSR_THRE) == 0 ) {
-            ;
-        }
-        csrptr->buffer = '\r';
-    }
+void send_gdb_header(){
+    put_byte('\02'); //STX
+    put_byte('G');
 }
 
 static void serial_write(unsigned char *buf, int len) {
@@ -248,13 +246,16 @@ static void get_packet(char *buf, int len) {
             rchksum = hex(ch) << 4;
             ch = get_byte();
             rchksum += hex(ch);
-
+            
+            send_gdb_header();
             if ((checksum & 0xff) != rchksum)
                 put_byte('-');
             else {
                 put_byte('+');
+                put_byte('\04');
                 return;
             }
+            put_byte('\04');
         }
     }
 }
@@ -265,6 +266,7 @@ static void put_packet(char *buf) {
     char tmp[3];
 
     do {
+        send_gdb_header();
         put_byte('$');
 
         checksum = 0;
@@ -276,6 +278,8 @@ static void put_packet(char *buf) {
         tmp[0] = '#';
         hex_byte(tmp + 1, checksum & 0xff);
         serial_write(tmp, 3);
+        
+        put_byte('\04'); //EOT        
 
         ch = get_byte();
 

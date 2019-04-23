@@ -19,6 +19,7 @@
  *
  ****************************************************************************/
 
+#include <xinu.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -29,21 +30,28 @@
 #define VEC_PABT 3
 #define VEC_DABT 4
 
+
+#define STUB_STACK_SIZE 8192
+char _stub_stack[STUB_STACK_SIZE];
+
 static char packet_buf[BUFMAX];
 static char reply_buf[BUFMAX];
 
 static const char hexchars[] = "0123456789abcdef";
-static int gdb_exception_no, gdb_mem_access;
+int gdb_exception_no, gdb_mem_access;
 static unsigned long registers[17];
 
-void gdb_api_breakpoint(void);
-static void gdb_api_log(char *msg);
+void breakpoint(void);
+//static void gdb_api_log(char *msg);
 
+/*
 __attribute__((section(".gdbapi"))) struct gdb_api gdb_api =
 {
     GDB_API_MAGIC,
-    {gdb_api_breakpoint, gdb_api_log}
+    {breakpoint, gdb_api_log}
 };
+*/
+
 
 static inline bool isxdigit(char c)
 {
@@ -59,6 +67,26 @@ static int hex(char ch) {
     if ((ch >= 'A') && (ch <= 'F'))
         return ch - 'A' + 10;
     return -1;
+}
+
+int hexToInt(char **ptr, int *intValue) {
+    int numChars = 0;
+    int hexValue;
+
+    *intValue = 0;
+    while (**ptr) {
+        hexValue = hex(**ptr);
+        if (hexValue >= 0) {
+            *intValue = (*intValue << 4) | hexValue;
+            numChars++;
+        } else {
+            break;
+        }
+
+        (*ptr)++;
+    }
+
+    return numChars;
 }
 
 static void hex_byte(char *s, int byte) {
@@ -123,6 +151,10 @@ static void reply_ok(char *reply) {
 }
 
 static int get_byte(void) {
+    struct dentry* devptr;
+    struct uart_csreg* regptr;
+    int irmask;
+
     int c;
     devptr = (struct dentry *) &devtab[CONSOLE];
     regptr = (struct uart_csreg *)devptr->dvcsr;
@@ -142,6 +174,9 @@ static int get_byte(void) {
 }
 
 static void put_byte(unsigned char c) {
+    struct uart_csreg* csrptr;
+    struct dentry* devptr;
+
     /* Get CSR address of the console */
     devptr = (struct dentry *) &devtab[CONSOLE];
     csrptr = (struct uart_csreg *) devptr->dvcsr;
@@ -291,7 +326,7 @@ static void g_reply(char *buf) {
 static void cmd_get_register(char *args, char *reply) {
     int r;
 
-    if (sscanf(args, "%x", &r) != 1) {
+    if (!hexToInt(&args, &r)) {
         reply_error(0, reply);
         return;
     }
@@ -306,17 +341,21 @@ static void cmd_get_register(char *args, char *reply) {
         hex_word(reply, 0);
         reply[8] = 0;
     }
+    return;
 }
 
 static void cmd_set_register(char *args, char *reply) {
   int r, p;
   unsigned long v;
 
-  p = -1;
-  sscanf(args, "%x=%n", &r, &p);
-  if (p == -1) {
-    reply_error(0, reply);
-    return;
+  if (!hexToInt(&args, &r)) {
+    goto error;
+  }
+  if (*(args++) != '=') {
+    goto error;
+  }
+  if (!hexToInt(&args, &p)) {
+    goto error;
   }
 
   v = get_hex_word(args + p);
@@ -325,6 +364,11 @@ static void cmd_set_register(char *args, char *reply) {
   else if (r == 25)
     set_cpsr(v);
   reply_ok(reply);
+  return;
+
+error:
+  reply_error(0, reply);
+  return;
 }
 
 static void cmd_set_registers(char *args, char *reply) {
@@ -351,9 +395,14 @@ static void cmd_set_registers(char *args, char *reply) {
 static void cmd_get_memory(char *args, char *reply) {
     unsigned long addr, len, i;
 
-    if (sscanf(args, "%lx,%lx", &addr, &len) != 2) {
-        reply_error(0, reply);
-        return;
+    if (!hexToInt(&args, &addr)) {
+        goto error;
+    }
+    if (*(args++) != ',') {
+        goto error;
+    }
+    if (!hexToInt(&args, &len)) {
+        goto error;
     }
 
     if (len > (BUFMAX - 16) / 2) {
@@ -367,18 +416,28 @@ static void cmd_get_memory(char *args, char *reply) {
     gdb_mem_access = 0;
 
     reply[len * 2] = 0;
+    return;
+error:
+    reply_error(0, reply);
+    return;
 }
 
 static void cmd_put_memory(char *args, char *reply) {
     unsigned long addr, len, i;
     int pos;
+    char* original = args;
 
-    pos = -1;
-    sscanf(args, "%lx,%lx:%n", &addr, &len, &pos);
-    if (pos == -1) {
-        reply_error(0, reply);
-        return;
+    if (!hexToInt(&args, &addr)) {
+        goto error;
     }
+    if (*(args++) != ',') {
+        goto error;
+    }
+    if (!hexToInt(&args, &len)) {
+        goto error;
+    }
+
+    pos = (int) (args - original);
 
     gdb_mem_access = 1;
     for (i = 0; i < len; i++)
@@ -386,18 +445,28 @@ static void cmd_put_memory(char *args, char *reply) {
     gdb_mem_access = 0;
 
     reply_ok(reply);
+    return;
+error:
+    reply_error(0, reply);
+    return;
 }
 
 static void cmd_put_memory_binary(char *args, char *reply) {
     unsigned long addr, len, i;
     int pos;
+    char* original = args;
 
-    pos = -1;
-    sscanf(args, "%lx,%lx:%n", &addr, &len, &pos);
-    if (pos == -1) {
-        reply_error(0, reply);
-        return;
+    if (!hexToInt(&args, &addr)) {
+        goto error;
     }
+    if (*(args++) != ',') {
+        goto error;
+    }
+    if (!hexToInt(&args, &len)) {
+        goto error;
+    }
+
+    pos = (int) (args - original);
 
     gdb_mem_access = 1;
     for (i = 0; i < len; i++)
@@ -405,16 +474,24 @@ static void cmd_put_memory_binary(char *args, char *reply) {
     gdb_mem_access = 0;
 
     reply_ok(reply);
+    return;
+error:
+    reply_error(0, reply);
+    return;
 }
 
 static void parse_continue_args(char *args) {
     int sig;
     unsigned long addr;
 
-    if (sscanf(args, "%x;%lx", &sig, &addr) == 2) {
-        set_general_reg(15, addr);
-    } else if (sscanf(args, "%lx", &addr) == 1) {
-        set_general_reg(15, addr);
+    if (hexToInt(&args, &addr)) {
+        if (*(args++) == ';') {
+            if (hexToInt(&args, &addr)) {
+                set_general_reg(15, addr);
+            }
+        } else {
+            set_general_reg(15, addr);
+        }
     }
 }
 
@@ -502,11 +579,9 @@ void gdb_loop(void) {
     }
 }
 
-extern void *vectors[];
-
-static void gdb_set_vector(int n, void *p)
+void set_debug_traps(int n, void *p)
 {
-    vectors[n] = p;
+    set_evec(n, (uint32)p);
 }
 
 void gdb_und_exc(void);
@@ -558,45 +633,6 @@ void fiq(void)
 {
 }
 
-static void system_init(void)
-{
-    int i;
-
-
-    for (i = 0; i < 0x1c; i++)
-    {
-        IRQ_WRITE_WAIT(0x404 + i * 4, 0x1e000001, (v & 0x3010f) == 1);
-        IRQ_WRITE_WAIT(0x404 + i * 4, 0x4000000, (v & 0x10000) == 0);
-        IRQ_WRITE_WAIT(0x404 + i * 4, 0x10000001, (v & 0xf) == 1);
-    }
-    
-    GPIO3_CLR = 1;
-}
-
-static void gdb_api_log(char *msg)
-{
-    int i;
-
-    reply_buf[0] = 'O';
-    i = 1;
-    while (*msg && i + 2 <= BUFMAX - 1)
-    {
-        hex_byte(reply_buf + i, *msg++);
-        i += 2;
-    }
-    reply_buf[i] = 0;
-    put_packet(reply_buf);
-}
-
-void main(void)
-{
-    system_init();
-    usb_serial_init();
-    gdb_mem_access = 0;
-    gdb_set_vectors();
-    gdb_api_breakpoint();
-    while (1);
-}
 
 #define str(s) #s
 #define xstr(s) str(s)
@@ -652,7 +688,8 @@ asm (".text\n"
      "    msr    cpsr_c, #0xd3\n"
      "    ldr    sp, =_stub_stack\n"
      "    b      gdb_loop_from_exc\n"
-     "gdb_api_breakpoint:\n"
+     ".globl breakpoint\n"
+     "breakpoint:\n"
      "    stmfd  sp!, {r0-r1}\n"
      "    ldr    r0, =registers\n"
      "    mrs    r1, cpsr\n"

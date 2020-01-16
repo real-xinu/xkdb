@@ -241,6 +241,7 @@ def main():
     parser.add_argument('backend', metavar='BACKEND', type=str, nargs='?', default=None,
                         help='optionally specify a backend board to connect to')
     args = parser.parse_args()
+    print("xinu file is:", args.xinu_file, ":")
 
     backend_type = args.type
     if 'CS_CLASS' in os.environ:
@@ -298,7 +299,7 @@ def main():
     print("GDB server listening on localhost:{}".format(gdb_handler.port))
     print("You can connect automatically with: gdb -x ~/.xkdb")
     with open("{}/.xkdb".format(expanduser('~')), "w") as f:
-        f.write("file {}.elf\n".format(abspath(args.xinu_file)))
+        f.write("file {}\n".format(abspath(args.xinu_file)))
         f.write("set tcp auto-retry on\n")
         f.write("set tcp connect-timeout 120\n")
         f.write('print ""\n')

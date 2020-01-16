@@ -59,7 +59,7 @@ If a stub doesn't exist for your board, please read the instructions in
    should look like this: ```CFLAGS  = -march=i586 ...```
 
    Add `-g` to the `CFLAGS` variable so it looks along the lines of:
-   ```CFLAGS  = -g -march=i586 -m32 -fno-builtin...```
+   `CFLAGS  = -g -march=i586 -m32 -fno-builtin...`
    
 3. **Recompile**
 

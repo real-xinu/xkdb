@@ -35,7 +35,7 @@ If a stub doesn't exist for your board, please read the instructions in
    Next add these two function calls near the bottom of the `sysinit()` 
    function (changes marked with `//` comments):
 
-   ```c
+```c
    static  void    sysinit()
    {
    ...
@@ -51,7 +51,7 @@ If a stub doesn't exist for your board, please read the instructions in
        clkinit();
    ...
    }
-    ```
+```
 
 2. **Add debug flag to your xinu Makefile**
 

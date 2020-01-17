@@ -231,10 +231,10 @@ def main():
     parser.add_argument('--type', '-t', '--class', '-c', dest='type', 
                         action='store', default='quark',
                         help='the type of backend board to connect to (default=quark)')
-    parser.add_argument('--xinu', '-x', dest='xinu_file', action='store', default='xinu.xbin',
+    parser.add_argument('--xinu', '-x', dest='xinu_file', action='store', default='xinu',
                         help='the xinu image file to upload and debug\n'
-                             '(default="./xinu.xbin")')
-    parser.add_argument('--executable', '-e', dest='xinu_executable', action='store', default='xinu',
+                             '(default="./xinu")')
+    parser.add_argument('--executable', '-e', dest='xinu_executable', action='store', default='xinu.elf',
                         help='the local xinu executable file to give gdb for debugging\n'
                             '(default="./xinu.elf")')
     parser.add_argument("--no-powercycle", "-p", action='store_false', dest='powercycle',

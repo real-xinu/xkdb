@@ -236,7 +236,7 @@ def main():
                              '(default="./xinu.xbin")')
     parser.add_argument('--executable', '-e', dest='xinu_executable', action='store', default='xinu',
                         help='the local xinu executable file to give gdb for debugging\n'
-                            '(default="./xinu")')
+                            '(default="./xinu.elf")')
     parser.add_argument("--no-powercycle", "-p", action='store_false', dest='powercycle',
                         help='do not power cycle the backend when connecting')
     parser.add_argument("--no-upload", "-u", action='store_false', dest='upload',

@@ -157,6 +157,6 @@ Our re-written version of `cs-console` does the following:
 
 ## Known Issues
 
-1. **Don't use GDB Plugins with this project**
+1. **Caution when using GDB Plugins with this project**
 
-If you choose to do so, expect that they might cause problems that xinu doesn't like. gdb-peda (https://github.com/longld/peda) calls getpid() in the remote process when it starts up, which makes it look like xinu is crashing there. It's not :)
+If you choose to do so, expect that they may potentially cause problems that xinu doesn't like. gdb-peda (https://github.com/longld/peda) calls getpid() in the remote process when it starts up, which makes it look like xinu is crashing there. It's not :)

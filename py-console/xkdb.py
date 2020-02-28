@@ -243,7 +243,7 @@ def main():
     args = parser.parse_args()
 
     backend_type = args.type
-    if 'CS_CLASS' in os.environ:
+    if 'CS_CLASS' in os.environ and not args.type:
         backend_type = os.environ['CS_CLASS']
 
     backend_servers = get_backend_servers(backend_class=backend_type)

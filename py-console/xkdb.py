@@ -228,8 +228,7 @@ def main():
     )
     parser.add_argument('--status', '-s', dest='status', action='store_true',
                         help='print out status of backends and exit')
-    parser.add_argument('--type', '-t', '--class', '-c', dest='type', 
-                        action='store', default='quark',
+    parser.add_argument('--type', '-t', '--class', '-c', dest='type', action='store',
                         help='the type of backend board to connect to (default=quark)')
     parser.add_argument('--xinu', '-x', dest='xinu_file', action='store', default='xinu',
                         help='the xinu image file to upload and debug\n'
@@ -246,8 +245,8 @@ def main():
     args = parser.parse_args()
 
     backend_type = args.type
-    if 'CS_CLASS' in os.environ:
-        backend_type = os.environ['CS_CLASS']
+    if not backend_type:
+        backend_type = os.environ.get('CS_CLASS', 'quark') # Default to 'quark' if CS_CLASS does not exist
 
     backend_servers = get_backend_servers(backend_class=backend_type)
 

@@ -242,8 +242,9 @@ def main():
                         help='optionally specify a backend board to connect to')
     args = parser.parse_args()
 
-    backend_type = args.type
-    if 'CS_CLASS' in os.environ and not args.type:
+    if args.type:
+        backend_type = args.type
+    elif 'CS_CLASS' in os.environ:
         backend_type = os.environ['CS_CLASS']
 
     backend_servers = get_backend_servers(backend_class=backend_type)

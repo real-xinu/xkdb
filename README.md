@@ -20,6 +20,9 @@ boards in 2019.
 If a stub doesn't exist for your board, please read the instructions in
 [PORTING](PORTING.md).
 
+
+Once you figure this out, you can do one of the following. Either follow the steps below to manually setup XKDB, or, use the tool xkdb_builder. You will need to reference the XKDB folder and your XINU folder in doing so. 
+
 1. **Compile appropriate stub into your xinu build**
 
    Move `stub/<arch>-stub.c` into `system/<arch>-stub.c`.
